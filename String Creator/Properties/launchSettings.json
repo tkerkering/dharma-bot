@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "String Creator": {
+      "commandName": "Project",
+      "commandLineArgs": "\"../../../Files/strings.json\" \"../../../../Dharma_DSharp/Constants/Strings.cs\""
+    }
+  }
+}

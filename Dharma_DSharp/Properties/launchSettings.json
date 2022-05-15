@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Dharma_DSharp": {
+      "commandName": "Project",
+      "commandLineArgs": "../../../../token.txt"
+    }
+  }
+}
