@@ -3,8 +3,10 @@
 ##
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
-# Debug files for security
+# Debug files for security => need to be present and also need to contain a value ;)
 token.txt
+# Need to be present for string creator project that creates the strings stuff
+/String Creator/Files/*
 
 # User-specific files
 *.rsuser
