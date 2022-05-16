@@ -2,16 +2,17 @@
 using Dharma_DSharp.Constants;
 using Dharma_DSharp.Modules.Dharma;
 using DSharpPlus;
+using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
 using DSharpPlus.SlashCommands;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
-using static System.Net.Mime.MediaTypeNames;
+using System.Numerics;
 
 namespace Dharma_DSharp
 {
-    internal class Program
+    internal sealed class Program
     {
         private static void Main(string[] args)
         {
@@ -19,7 +20,7 @@ namespace Dharma_DSharp
             {
                 Token = TryGetToken(args),
                 TokenType = TokenType.Bot,
-                Intents = DiscordIntents.AllUnprivileged,
+                Intents = DiscordIntents.All,
                 LargeThreshold = 300,
                 LoggerFactory = CreateSerilogLoggerFactory()
             });
@@ -67,17 +68,110 @@ namespace Dharma_DSharp
         {
             discordClient.MessageCreated += (s, e) =>
             {
-                if (e.Message.Content.ToLower().StartsWith("something"))
-                {
-                    // await e.Message.RespondAsync("something else!");
-                }
+                // TODO: Add leveling system here, needs database first, too bad!
                 return Task.CompletedTask;
             };
 
-            discordClient.GuildMemberAdded += (s, e) =>
+            discordClient.GuildMemberAdded += (client, e) =>
             {
+                _ = Task.Run(async () =>
+                {
+                    await SendEmbedToWelcomeHall(client,
+                        $"Welcome to Dharma <@{e.Member.Id}>!\n Please head over to[#start-here](https://discord.com/channels/{DharmaConstants.GuildId}/{DharmaConstants.ChannelIds.StartHere}) to get basic access to several parts of our community.",
+                        DiscordColor.SpringGreen,
+                        "Please give a warm welcome to our newest guest~",
+                        "https://i.imgur.com/JQIxLPQ.png",
+                        "https://i.imgur.com/uc89PmB.gif").ConfigureAwait(false);
+                });
+
                 return Task.CompletedTask;
             };
+
+            discordClient.GuildBanAdded += (client, e) =>
+            {
+                _ = Task.Run(async () =>
+                {
+                    await SendEmbedToWelcomeHall(client,
+                        $"Goodbye <@{e.Member.Id}>. We tried.",
+                        DiscordColor.DarkRed,
+                        string.Empty,
+                        string.Empty,
+                        "https://c.tenor.com/S-Lbnq4B-KUAAAAM/good-bye-bye-bye.gif").ConfigureAwait(false);
+                });
+
+                return Task.CompletedTask;
+            };
+
+            discordClient.GuildMemberRemoved += (client, e) =>
+            {
+                _ = Task.Run(async () =>
+                {
+                    var auditLog = e.Guild.GetAuditLogsAsync(10).Result;
+                    var kickLogs = auditLog.Where(singleLog => singleLog.ActionType == AuditLogActionType.Kick)?.FirstOrDefault(log => ((DiscordAuditLogKickEntry)log).Target.Id == e.Member.Id);
+                    var banLogs = auditLog.Where(singleLog => singleLog.ActionType == AuditLogActionType.Ban)?.FirstOrDefault(log => ((DiscordAuditLogBanEntry)log).Target.Id == e.Member.Id);
+
+                    if (banLogs != null)
+                    {
+                        return;
+                    }
+
+                    if (kickLogs != null)
+                    {
+                        // User kicked
+                        await SendEmbedToWelcomeHall(client,
+                            $"Welp, we tried <@{e.Member.Id}>.",
+                            DiscordColor.Orange).ConfigureAwait(false);
+                        return;
+                    }
+
+                    // User left
+                    await SendEmbedToWelcomeHall(client,
+                        $"Welp, we tried <@{e.Member.Username}>.",
+                        DiscordColor.Grayple).ConfigureAwait(false);
+                });
+
+                return Task.CompletedTask;
+            };
+        }
+
+        /// <param name="discordClient"></param>
+        /// <param name="description"></param>
+        /// <param name="title"></param>
+        /// <param name="topRightCornerThumbnail">Provide a valid uri.</param>
+        /// <param name="footerImage">Provide a valid uri.</param>
+        /// <param name="footer"></param>
+        /// <returns></returns>
+        private async static Task SendEmbedToWelcomeHall(DiscordClient discordClient,
+            string description,
+            DiscordColor discordColor,
+            string title = "",
+            string topRightCornerThumbnail = "",
+            string footerImage = "")
+        {
+            var welcomeHall = await discordClient.GetChannelAsync(DharmaConstants.ChannelIds.WelcomeHall);
+            var embed = new DiscordEmbedBuilder()
+                .WithDescription(description)
+                .WithColor(discordColor)
+                .WithFooter("The Dharma Team");
+
+            if (!string.IsNullOrEmpty(title))
+            {
+                embed.WithTitle(title);
+            }
+
+            if (!string.IsNullOrEmpty(topRightCornerThumbnail))
+            {
+                embed.WithThumbnail(topRightCornerThumbnail);
+            }
+
+            if (!string.IsNullOrEmpty(footerImage))
+            {
+                embed.WithImageUrl(footerImage);
+            }
+;
+            await welcomeHall.SendMessageAsync(embed).ConfigureAwait(false);
+
+            return;
         }
 
         /// <summary>
@@ -126,7 +220,6 @@ namespace Dharma_DSharp
         /// May exit the environment if no valid token is given.
         /// </summary>
         /// <param name="args"></param>
-        /// <returns></returns>
         private static string TryGetToken(string[] args)
         {
             var token = string.Empty;
