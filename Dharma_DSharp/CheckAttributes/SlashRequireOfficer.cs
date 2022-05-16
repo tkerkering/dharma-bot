@@ -1,8 +1,11 @@
-﻿using Dharma_DSharp.Constants;
-using DSharpPlus.SlashCommands;
+﻿using DSharpPlus.SlashCommands;
+using static Dharma_DSharp.Constants.DharmaConstants;
 
 namespace Dharma_DSharp.CheckAttributes
 {
+    /// <summary>
+    /// Checks if the command is triggered from a guild and if the <see cref="DSharpPlus.Entities.DiscordMember"/> 
+    /// </summary>
     internal class SlashRequireOfficerIdAttribute : SlashCheckBaseAttribute
     {
         // may also be asnyc
@@ -19,7 +22,7 @@ namespace Dharma_DSharp.CheckAttributes
                 return Task.FromResult(false);
             }
 
-            var isOfficer = member.Roles.Select(x => x.Id).Intersect(DharmaConstants.AllOfficers).Any();
+            var isOfficer = member.Roles.Select(x => x.Id).Intersect(RoleIds.AllOfficers).Any();
             if (!isOfficer)
             {
                 return Task.FromResult(false);
