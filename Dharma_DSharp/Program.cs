@@ -8,7 +8,6 @@ using DSharpPlus.SlashCommands;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
-using System.Numerics;
 
 namespace Dharma_DSharp
 {
@@ -188,6 +187,7 @@ namespace Dharma_DSharp
 
             // Register all command classes here
             slash.RegisterCommands<GrantCommands>(DharmaConstants.GuildId);
+            slash.RegisterCommands<ListMembersWithRoleCommand>(DharmaConstants.GuildId);
         }
 
         /// <summary>
