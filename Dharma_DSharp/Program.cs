@@ -8,6 +8,7 @@ using DSharpPlus.SlashCommands;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using static Dharma_DSharp.Constants.DharmaConstants;
 
 namespace Dharma_DSharp
 {
@@ -62,84 +63,119 @@ namespace Dharma_DSharp
         /// <summary>
         /// Hooks various event listeners of the <paramref name="discordClient"/> to logic.
         /// </summary>
-        /// <param name="discordClient"></param>
         private static void HookEventListeners(DiscordClient discordClient)
         {
+            // TODO: Use for leveling system
             discordClient.MessageCreated += (s, e) =>
             {
-                // TODO: Add leveling system here, needs database first, too bad!
                 return Task.CompletedTask;
             };
 
+            // Used for welcome-embed
             discordClient.GuildMemberAdded += (client, e) =>
             {
                 _ = Task.Run(async () =>
                 {
+                    var welcomeDescription = Strings.WelcomeDescription.Replace("{0}", e.Member.Id.ToString()).Replace("{1}", GuildId.ToString()).Replace("{2}", ChannelIds.StartHere.ToString());
                     await SendEmbedToWelcomeHall(client,
-                        $"Welcome to Dharma <@{e.Member.Id}>!\n Please head over to[#start-here](https://discord.com/channels/{DharmaConstants.GuildId}/{DharmaConstants.ChannelIds.StartHere}) to get basic access to several parts of our community.",
-                        DiscordColor.SpringGreen,
-                        "Please give a warm welcome to our newest guest~",
-                        "https://i.imgur.com/JQIxLPQ.png",
-                        "https://i.imgur.com/uc89PmB.gif").ConfigureAwait(false);
+                        welcomeDescription,
+                        new DiscordColor(Strings.WelcomeEmbedColor),
+                        Strings.WelcomeTitle,
+                        Strings.WelcomeThumbnailUrl,
+                        Strings.WelcomeFooterImage).ConfigureAwait(false);
                 });
 
                 return Task.CompletedTask;
             };
 
-            discordClient.GuildBanAdded += (client, e) =>
+            // Used for membership screening
+            discordClient.GuildMemberUpdated += (client, e) =>
             {
                 _ = Task.Run(async () =>
                 {
-                    await SendEmbedToWelcomeHall(client,
-                        $"Goodbye <@{e.Member.Id}>. We tried.",
-                        DiscordColor.DarkRed,
-                        string.Empty,
-                        string.Empty,
-                        "https://c.tenor.com/S-Lbnq4B-KUAAAAM/good-bye-bye-bye.gif").ConfigureAwait(false);
-                });
+                    // If the user already has a role the screening process will be skipped.
+                    if (e.RolesBefore.Count != 0 || e.Guild.Id != DharmaConstants.GuildId)
+                    {
+                        return;
+                    }
 
+                    // Already passed membership screening
+                    if (e.PendingBefore.HasValue && !e.PendingBefore.Value)
+                    {
+                        return;
+                    }
+
+                    var homieRole = e.Guild.Roles.FirstOrDefault(role => role.Key == RoleIds.HomieId);
+                    if (homieRole.Value == default)
+                    {
+                        return;
+                    }
+
+                    if (e.PendingAfter.HasValue && !e.PendingAfter.Value)
+                    {
+                        // Passed membership screening grant homie
+
+                        LogTo.Debug("{user} passed membership screening, granting {homie}", e.Member.Username, homieRole);
+                        await e.Member.GrantRoleAsync(homieRole.Value, "Granted by Dharma Bot membership screening addition").ConfigureAwait(false);
+                    }
+                });
                 return Task.CompletedTask;
             };
 
+            // Used for kick/ban/leave message
             discordClient.GuildMemberRemoved += (client, e) =>
             {
                 _ = Task.Run(async () =>
                 {
-                    var auditLog = e.Guild.GetAuditLogsAsync(10).Result;
+                    var auditLog = e.Guild.GetAuditLogsAsync(2).Result;
                     var kickLogs = auditLog.Where(singleLog => singleLog.ActionType == AuditLogActionType.Kick)?.FirstOrDefault(log => ((DiscordAuditLogKickEntry)log).Target.Id == e.Member.Id);
                     var banLogs = auditLog.Where(singleLog => singleLog.ActionType == AuditLogActionType.Ban)?.FirstOrDefault(log => ((DiscordAuditLogBanEntry)log).Target.Id == e.Member.Id);
 
                     if (banLogs != null)
                     {
+                        var bannedDescription = Strings.UserBannedDescription.Replace("{0}", e.Member.Id.ToString());
+                        await SendEmbedToWelcomeHall(client,
+                            bannedDescription,
+                            new DiscordColor(Strings.UserBannedEmbedColor),
+                            Strings.UserBannedTitle,
+                            Strings.UserBannedThumbnailUrl,
+                            Strings.UserBannedFooterImage).ConfigureAwait(false);
                         return;
                     }
 
                     if (kickLogs != null)
                     {
-                        // User kicked
+                        var kickedDescription = Strings.UserKickedDescription.Replace("{0}", e.Member.Id.ToString());
                         await SendEmbedToWelcomeHall(client,
-                            $"Welp, we tried <@{e.Member.Id}>.",
-                            DiscordColor.Orange).ConfigureAwait(false);
+                            kickedDescription,
+                            new DiscordColor(Strings.UserKickedEmbedColor),
+                            Strings.UserKickedTitle,
+                            Strings.UserKickedThumbnailUrl,
+                            Strings.UserKickedFooterImage).ConfigureAwait(false);
                         return;
                     }
 
                     // User left
+                    var leftDescription = Strings.UserLeftDescription.Replace("{0}", e.Member.Id.ToString());
                     await SendEmbedToWelcomeHall(client,
-                        $"Welp, we tried <@{e.Member.Username}>.",
-                        DiscordColor.Grayple).ConfigureAwait(false);
+                        leftDescription,
+                        new DiscordColor(Strings.UserLeftEmbedColor),
+                        Strings.UserLeftTitle,
+                        Strings.UserLeftThumbnailUrl,
+                        Strings.UserLeftFooterImage).ConfigureAwait(false);
+                    return;
                 });
 
                 return Task.CompletedTask;
             };
         }
 
-        /// <param name="discordClient"></param>
-        /// <param name="description"></param>
-        /// <param name="title"></param>
+        /// <param name="discordClient">Client that is used to send the embed.</param>
+        /// <param name="description">Description of the embed.</param>
+        /// <param name="discordColor">The color of the embed.</param>
+        /// <param name="title">Title of the embed.</param>
         /// <param name="topRightCornerThumbnail">Provide a valid uri.</param>
         /// <param name="footerImage">Provide a valid uri.</param>
-        /// <param name="footer"></param>
-        /// <returns></returns>
         private async static Task SendEmbedToWelcomeHall(DiscordClient discordClient,
             string description,
             DiscordColor discordColor,
@@ -148,6 +184,7 @@ namespace Dharma_DSharp
             string footerImage = "")
         {
             var welcomeHall = await discordClient.GetChannelAsync(DharmaConstants.ChannelIds.WelcomeHall);
+            description = description.Replace(@"\n", "\n");
             var embed = new DiscordEmbedBuilder()
                 .WithDescription(description)
                 .WithColor(discordColor)
@@ -167,9 +204,8 @@ namespace Dharma_DSharp
             {
                 embed.WithImageUrl(footerImage);
             }
-;
-            await welcomeHall.SendMessageAsync(embed).ConfigureAwait(false);
 
+            await welcomeHall.SendMessageAsync(embed).ConfigureAwait(false);
             return;
         }
 
