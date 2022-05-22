@@ -1,13 +1,8 @@
 ﻿using Anotar.Serilog;
 using Dharma_DSharp.CheckAttributes;
-using Dharma_DSharp.Constants;
 using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.SlashCommands;
-using Newtonsoft.Json.Linq;
-using System.IO;
-using System.Text.RegularExpressions;
-using static Dharma_DSharp.Constants.DharmaConstants;
 
 namespace Dharma_DSharp.Modules.Dharma
 {
