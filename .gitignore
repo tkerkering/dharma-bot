@@ -7,7 +7,6 @@
 token.txt
 # Need to be present for string creator project that creates the strings stuff
 /String Creator/Files/*
-/Dharma_DSharp/Constants/Strings.cs
 
 # User-specific files
 *.rsuser
