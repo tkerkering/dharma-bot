@@ -223,7 +223,7 @@ namespace Dharma_DSharp
                         return;
                     }
 
-                    var welcomeDescription = Strings.WelcomeDescription.Replace("{0}", e.Member.Id.ToString()).Replace("{1}", GuildId.ToString()).Replace("{2}", ChannelIds.StartHere.ToString());
+                    var welcomeDescription = Strings.WelcomeDescription.Replace("{0}", e.Member.Id.ToString());
                     await SendEmbedToWelcomeHall(client,
                         welcomeDescription,
                         new DiscordColor(Strings.WelcomeEmbedColor),
