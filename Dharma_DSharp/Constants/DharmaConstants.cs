@@ -6,9 +6,11 @@
 
         public static class ChannelIds
         {
-            public static ulong StartHere = 879816146365345863;
-            public static ulong WelcomeHall = 879484918411984906;
-            public static ulong GeneralReactionRoles = 884979772109750272;
+            public static readonly ulong StartHere = 879816146365345863;
+            public static readonly ulong WelcomeHall = 879484918411984906;
+            public static readonly ulong GeneralReactionRoles = 884979772109750272;
+            public static readonly ulong PhantasyNgsAlert = 729974331505115157;
+            public static readonly ulong PartyingChannel = 979925772733136916;
         }
 
         public static class RoleIds

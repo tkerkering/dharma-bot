@@ -4,11 +4,15 @@ using Dharma_DSharp.Modules.Dharma;
 using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
+using DSharpPlus.Interactivity.Enums;
+using DSharpPlus.Interactivity;
+using DSharpPlus.Interactivity.Extensions;
 using DSharpPlus.SlashCommands;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
 using static Dharma_DSharp.Constants.DharmaConstants;
+using System.Xml.Linq;
 
 namespace Dharma_DSharp
 {
@@ -66,8 +70,142 @@ namespace Dharma_DSharp
         private static void HookEventListeners(DiscordClient discordClient)
         {
             // TODO: Use for leveling system
-            discordClient.MessageCreated += (s, e) =>
+            discordClient.MessageCreated += (client, e) =>
             {
+                _ = Task.Run(async () =>
+                {
+                    if (e.Guild.Id != GuildId || e.Channel.Id != ChannelIds.PartyingChannel)
+                    {
+                        return;
+                    }
+
+#if !DEBUG
+                    if (e.Message.Embeds.FirstOrDefault() == null)
+                    {
+                        return;
+                    }
+#endif
+
+                    var searchString = "is happening in ";
+                    var indexOfHappening = e.Message.Content.IndexOf(searchString);
+                    if (indexOfHappening == -1 || indexOfHappening == 0)
+                    {
+                        return;
+                    }
+                    var cutIrrelevant = e.Message.Content.Substring(indexOfHappening + searchString.Length);
+                    var cuttedIrrelevant = cutIrrelevant.Substring(0, cutIrrelevant.IndexOf(' '));
+
+                    var partyChannel = await client.GetChannelAsync(ChannelIds.PartyingChannel).ConfigureAwait(false);
+                    if (partyChannel == null)
+                    {
+                        return;
+                    }
+
+                    var openIndex = e.Message.Content.IndexOf('(') + 1;
+                    var closeIndex = e.Message.Content.IndexOf(')');
+                    var uqName = e.Message.Content.Substring(openIndex, closeIndex - openIndex);
+
+                    var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", "Party up");
+                    var leaveButton = new DiscordButtonComponent(ButtonStyle.Danger, $"leave_button_{uqName}", "Leave");
+                    var msg = new DiscordMessageBuilder()
+#if !DEBUG
+                        .WithEmbed(PartyingEmbed(uqName + " is happening in " + cuttedIrrelevant + " minutes!", e.Message.Embeds[0].Image.Url.ToString()))
+#else
+                        .WithEmbed(PartyingEmbed(uqName + " is happening in " + cuttedIrrelevant + " minutes!", "https://hifi.de/wp-content/uploads/2020/08/anime-streaming-dienste-augen-1100x550.jpg"))
+#endif
+                        .AddComponents(new DiscordComponent[] { registerButton, leaveButton });
+                    var message = await partyChannel.SendMessageAsync(msg).ConfigureAwait(false);
+
+                    // Will wait for 40ish minutes
+                    var _ = await message.CollectReactionsAsync();
+                    await message.DeleteAsync("The uq is over").ConfigureAwait(false);
+                });
+
+                return Task.CompletedTask;
+            };
+
+            discordClient.ComponentInteractionCreated += (client, e) =>
+            {
+                _ = Task.Run(async () =>
+                {
+                    var uqName = string.Empty;
+                    if (e.Message.Embeds.FirstOrDefault() is not DiscordEmbed)
+                    {
+                        return;
+                    }
+                    uqName = e.Message.Embeds[0].Title.Substring(e.Message.Embeds[0].Title.IndexOf(' '));
+                    var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", "Party up");
+                    var leaveButton = new DiscordButtonComponent(ButtonStyle.Danger, $"leave_button_{uqName}", "Leave");
+
+                    if (e.Id.Contains("register"))
+                    {
+                        if (e.Message.Embeds[0].Description.Contains(e.User.Username))
+                        {
+                            await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
+                                new DiscordInteractionResponseBuilder()
+                                    .AddEmbed(e.Message.Embeds[0])
+                                    .AddComponents(new DiscordComponent[] { registerButton, leaveButton }));
+                            return;
+                        }
+
+                        var indexEmptyUser = e.Message.Embeds[0].Description.IndexOf(". \n") + 2;
+                        if (indexEmptyUser == -1)
+                        {
+                            // Update embed and remove join button
+                            await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
+                                new DiscordInteractionResponseBuilder()
+                                    .AddEmbed(e.Message.Embeds[0])
+                                    .AddComponents(leaveButton));
+
+                            // Add new embed
+                            var msg = new DiscordMessageBuilder()
+                                .WithEmbed(PartyingEmbed(e.Message.Embeds[0].Title, e.Message.Embeds[0].Thumbnail.Url.ToString()))
+                                .AddComponents(new DiscordComponent[] { registerButton, leaveButton });
+                            var message = await e.Channel.SendMessageAsync(msg).ConfigureAwait(false);
+
+                            // Will wait for 40ish minutes
+                            var _ = await message.CollectReactionsAsync();
+                            await message.DeleteAsync("The uq is over").ConfigureAwait(false);
+                            return;
+                        }
+
+                        var withInsertedUser = e.Message.Embeds[0].Description.Substring(0, indexEmptyUser) + e.User.Username + e.Message.Embeds[0].Description.Substring(indexEmptyUser);
+                        await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
+                            new DiscordInteractionResponseBuilder()
+                                .AddEmbed(new DiscordEmbedBuilder()
+                                    .WithTitle(e.Message.Embeds[0].Title)
+                                    .WithThumbnail(e.Message.Embeds[0].Thumbnail.Url.ToString())
+                                    .WithDescription(withInsertedUser))
+                                .AddComponents(new DiscordComponent[] { registerButton, leaveButton }));
+                        return;
+                    }
+                    else if (e.Id.Contains("leave"))
+                    {
+                        var indexOfUser = e.Message.Embeds[0].Description.IndexOf(e.User.Username);
+                        if (indexOfUser == -1 || indexOfUser == 0)
+                        {
+                            await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
+                                new DiscordInteractionResponseBuilder()
+                                    .AddEmbed(e.Message.Embeds[0])
+                                    .AddComponents(new DiscordComponent[] { registerButton, leaveButton }));
+                            return;
+                        }
+                        var description = e.Message.Embeds[0].Description;
+
+                        var withRemovedUser = description.Substring(0, indexOfUser) + description.Substring(indexOfUser + e.User.Username.Length);
+                        await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
+                            new DiscordInteractionResponseBuilder()
+                                .AddEmbed(new DiscordEmbedBuilder()
+                                    .WithTitle(e.Message.Embeds[0].Title)
+                                    .WithThumbnail(e.Message.Embeds[0].Thumbnail.Url.ToString())
+                                    .WithDescription(withRemovedUser))
+                                .AddComponents(new DiscordComponent[] { registerButton, leaveButton }));
+                        return;
+                    }
+
+                    return;
+                });
+
                 return Task.CompletedTask;
             };
 
@@ -76,6 +214,11 @@ namespace Dharma_DSharp
             {
                 _ = Task.Run(async () =>
                 {
+                    if (e.Guild.Id != GuildId)
+                    {
+                        return;
+                    }
+
                     var welcomeDescription = Strings.WelcomeDescription.Replace("{0}", e.Member.Id.ToString()).Replace("{1}", GuildId.ToString()).Replace("{2}", ChannelIds.StartHere.ToString());
                     await SendEmbedToWelcomeHall(client,
                         welcomeDescription,
@@ -94,7 +237,7 @@ namespace Dharma_DSharp
                 _ = Task.Run(async () =>
                 {
                     // If the user already has a role the screening process will be skipped.
-                    if (e.RolesBefore.Count != 0 || e.Guild.Id != DharmaConstants.GuildId)
+                    if (e.RolesBefore.Count != 0 || e.Guild.Id != GuildId)
                     {
                         return;
                     }
@@ -127,6 +270,11 @@ namespace Dharma_DSharp
             {
                 _ = Task.Run(async () =>
                 {
+                    if (e.Guild.Id != GuildId)
+                    {
+                        return;
+                    }
+
                     var auditLog = e.Guild.GetAuditLogsAsync(2).Result;
                     var kickLogs = auditLog.Where(singleLog => singleLog.ActionType == AuditLogActionType.Kick)?.FirstOrDefault(log => ((DiscordAuditLogKickEntry)log).Target.Id == e.Member.Id);
                     var banLogs = auditLog.Where(singleLog => singleLog.ActionType == AuditLogActionType.Ban)?.FirstOrDefault(log => ((DiscordAuditLogBanEntry)log).Target.Id == e.Member.Id);
@@ -168,6 +316,14 @@ namespace Dharma_DSharp
 
                 return Task.CompletedTask;
             };
+        }
+
+        private static DiscordEmbed PartyingEmbed(string title, string imageUrl)
+        {
+            return new DiscordEmbedBuilder()
+                .WithTitle(title)
+                .WithThumbnail(imageUrl)
+                .WithDescription("Group 1:\n1. \n2. \n3. \n4. \n\nGroup2:\n5. \n6. \n7. \n8. \n");
         }
 
         /// <param name="discordClient">Client that is used to send the embed.</param>
@@ -216,14 +372,20 @@ namespace Dharma_DSharp
         {
             var serviceProvider = CreateDependencyInjection(discordClient);
 
+            discordClient.UseInteractivity(new InteractivityConfiguration()
+            {
+                PollBehaviour = PollBehaviour.KeepEmojis,
+                Timeout = TimeSpan.FromMinutes(40)
+            });
+
             var slash = discordClient.UseSlashCommands(new SlashCommandsConfiguration
             {
                 Services = serviceProvider
             });
 
             // Register all command classes here
-            slash.RegisterCommands<GrantCommands>(DharmaConstants.GuildId);
-            slash.RegisterCommands<ListMembersWithRoleCommand>(DharmaConstants.GuildId);
+            slash.RegisterCommands<GrantCommands>(GuildId);
+            slash.RegisterCommands<ListMembersWithRoleCommand>(GuildId);
         }
 
         /// <summary>
