@@ -51,9 +51,9 @@ namespace Dharma_DSharp.Constants
         public const string WelcomeTitle = @"Please give a warm welcome to our newest guest~";
 
         /// <summary>
-        /// 0 = UserId, 1 = Dharma GuildId, 2 = StartHere Channel-Id
+        /// 0 = UserId
         /// </summary>
-        public const string WelcomeDescription = @"Welcome to Dharma <@{0}>!\n Please head over to[#start-here](https://discord.com/channels/{1}/{2}) to get basic access to several parts of our community.";
+        public const string WelcomeDescription = @"Welcome to Dharma <@{0}>!\n Please accept the rules to get basic access to several parts of our community.";
 
         /// <summary>
         /// Color in RGB Hex format
