@@ -74,21 +74,10 @@ namespace Dharma_DSharp
             {
                 _ = Task.Run(async () =>
                 {
-#if !DEBUG
-                    if (e.Guild.Id != GuildId || e.Channel.Id != ChannelIds.PhantasyNgsAlert)
-#else
-                    if (e.Guild.Id != GuildId || e.Channel.Id != ChannelIds.PartyingChannel)
-#endif
+                    if (e.Guild.Id != GuildId || e.Channel.Id != ChannelIds.PhantasyNgsAlert || e.Message.Embeds.FirstOrDefault() == null)
                     {
                         return;
                     }
-
-#if !DEBUG
-                    if (e.Message.Embeds.FirstOrDefault() == null)
-                    {
-                        return;
-                    }
-#endif
 
                     var searchString = "is happening in ";
                     var indexOfHappening = e.Message.Content.IndexOf(searchString);
@@ -112,11 +101,7 @@ namespace Dharma_DSharp
                     var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", "Party up");
                     var leaveButton = new DiscordButtonComponent(ButtonStyle.Danger, $"leave_button_{uqName}", "Leave");
                     var msg = new DiscordMessageBuilder()
-#if !DEBUG
                         .WithEmbed(PartyingEmbed(uqName + " is happening in " + cuttedIrrelevant + " minutes!", e.Message.Embeds[0].Image.Url.ToString()))
-#else
-                        .WithEmbed(PartyingEmbed(uqName + " is happening in " + cuttedIrrelevant + " minutes!", "https://hifi.de/wp-content/uploads/2020/08/anime-streaming-dienste-augen-1100x550.jpg"))
-#endif
                         .AddComponents(new DiscordComponent[] { registerButton, leaveButton });
                     var message = await partyChannel.SendMessageAsync(msg).ConfigureAwait(false);
 
