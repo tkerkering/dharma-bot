@@ -80,12 +80,12 @@ namespace Dharma_DSharp
                     }
 
                     var searchString = "is happening in ";
-                    var indexOfHappening = e.Message.Content.IndexOf(searchString);
+                    var indexOfHappening = e.Message.Embeds[0].Description.IndexOf(searchString);
                     if (indexOfHappening == -1 || indexOfHappening == 0)
                     {
                         return;
                     }
-                    var cutIrrelevant = e.Message.Content.Substring(indexOfHappening + searchString.Length);
+                    var cutIrrelevant = e.Message.Embeds[0].Description.Substring(indexOfHappening + searchString.Length);
                     var cuttedIrrelevant = cutIrrelevant.Substring(0, cutIrrelevant.IndexOf(' '));
 
                     var partyChannel = await client.GetChannelAsync(ChannelIds.PartyingChannel).ConfigureAwait(false);
@@ -94,9 +94,9 @@ namespace Dharma_DSharp
                         return;
                     }
 
-                    var openIndex = e.Message.Content.IndexOf('(') + 1;
-                    var closeIndex = e.Message.Content.IndexOf(')');
-                    var uqName = e.Message.Content.Substring(openIndex, closeIndex - openIndex);
+                    var openIndex = e.Message.Embeds[0].Description.IndexOf('(') + 1;
+                    var closeIndex = e.Message.Embeds[0].Description.IndexOf(')');
+                    var uqName = e.Message.Embeds[0].Description.Substring(openIndex, closeIndex - openIndex);
 
                     var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", "Party up");
                     var leaveButton = new DiscordButtonComponent(ButtonStyle.Danger, $"leave_button_{uqName}", "Leave");
