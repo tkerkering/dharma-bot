@@ -18,11 +18,13 @@ namespace Dharma_DSharp
                 .WriteTo.Console()
                 .CreateLogger();
 
+#if DEBUG
             AddOrUpdateAllianceMember(148558164416135168, string.Empty, string.Empty, string.Empty).GetAwaiter().GetResult();
             AddOrUpdateAllianceMember(148558164416135165, string.Empty, string.Empty, string.Empty).GetAwaiter().GetResult();
             AddOrUpdateAllianceMember(148558164416135163, string.Empty, string.Empty, string.Empty).GetAwaiter().GetResult();
 
             GetAllianceMembers(new AppDbContext());
+#endif
 
             var discordClient = new DiscordClient(new DiscordConfiguration()
             {
