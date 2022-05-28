@@ -1,10 +1,14 @@
 ﻿using Anotar.Serilog;
 using Dharma_DSharp.Constants;
+using Dharma_DSharp.Data;
+using Dharma_DSharp.Extensions;
+using Dharma_DSharp.Models;
 using Dharma_DSharp.Modules.Dharma;
 using DSharpPlus;
 using DSharpPlus.Entities;
 using DSharpPlus.Exceptions;
 using DSharpPlus.SlashCommands;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -16,17 +20,68 @@ namespace Dharma_DSharp
     {
         private static void Main(string[] args)
         {
+            // Add serilog console sink
+            Log.Logger = new LoggerConfiguration()
+                .WriteTo.Console()
+                .CreateLogger();
+
+            AddOrUpdateAllianceMember(148558164416135168, string.Empty, string.Empty, string.Empty).GetAwaiter().GetResult();
+            AddOrUpdateAllianceMember(148558164416135165, string.Empty, string.Empty, string.Empty).GetAwaiter().GetResult();
+            AddOrUpdateAllianceMember(148558164416135163, string.Empty, string.Empty, string.Empty).GetAwaiter().GetResult();
+
+            GetAllianceMembers(new AppDbContext());
+
             var discordClient = new DiscordClient(new DiscordConfiguration()
             {
                 Token = TryGetToken(args),
                 TokenType = TokenType.Bot,
                 Intents = DiscordIntents.All,
                 LargeThreshold = 300,
-                LoggerFactory = CreateSerilogLoggerFactory()
+                LoggerFactory = new LoggerFactory().AddSerilog()
             });
             CreateCommandExtensions(discordClient);
 
             MainAsync(discordClient).GetAwaiter().GetResult();
+        }
+
+        private static void GetAllianceMembers(AppDbContext database)
+        {
+            var members = database.Member?.AsNoTracking();
+            if (members == null || !members.Any())
+            {
+                LogTo.Information("No alliance members found");
+                return;
+            }
+
+            foreach (var member in members)
+            {
+                LogTo.Information(member.ToString());
+            }
+        }
+
+        private static async Task AddOrUpdateAllianceMember(ulong userId, string displayName, string userName, string phantasyId)
+        {
+            using var context = new AppDbContext();
+            var newMember = context.Member
+                .FirstOrDefault(b => b.DiscordUserId == userId);
+            if (newMember is null)
+            {
+                newMember = new AllianceMember
+                {
+                    DiscordUserId = userId,
+                    DiscordDisplayName = displayName,
+                    DiscordUserName = userName,
+                    LastActivityUpdate = DateTime.Now,          // TODO: Fix me
+                    PhantasyUserId = phantasyId
+                };
+            }
+            newMember.DiscordDisplayName = string.IsNullOrEmpty(displayName) ? newMember.DiscordDisplayName : displayName;
+            newMember.DiscordUserName = string.IsNullOrEmpty(userName) ? newMember.DiscordUserName : userName;
+            newMember.PhantasyUserId = string.IsNullOrEmpty(phantasyId) ? newMember.PhantasyUserId : phantasyId;
+
+            context.Member.Attach(newMember);
+            context.Member.AddOrUpdate(newMember);
+            await context.SaveChangesAsync().ConfigureAwait(false);
         }
 
         private static async Task MainAsync(DiscordClient discordClient)
@@ -88,13 +143,20 @@ namespace Dharma_DSharp
                 return Task.CompletedTask;
             };
 
-            // Used for membership screening
             discordClient.GuildMemberUpdated += (client, e) =>
             {
                 _ = Task.Run(async () =>
                 {
-                    // If the user already has a role the screening process will be skipped.
-                    if (e.RolesBefore.Count != 0 || e.Guild.Id != DharmaConstants.GuildId)
+                    // Only process member updates for dharma.
+                    if (e.Guild.Id != GuildId)
+                    {
+                        return;
+                    }
+
+                    await AddOrUpdateAllianceMember(e.Member.Id, e.Member.DisplayName, e.Member.Username, string.Empty).ConfigureAwait(false);
+
+                    // For membership screening we don't have to process people that have 0 roles
+                    if (e.RolesBefore.Count != 0)
                     {
                         return;
                     }
@@ -234,21 +296,6 @@ namespace Dharma_DSharp
             return new ServiceCollection()
                 .AddSingleton<Random>()
                 .BuildServiceProvider();
-        }
-
-        /// <summary>
-        /// Creates the <see cref="ILoggerFactory"/> that will be used for logging throughtout the project.
-        /// Thankfully <see cref="DSharpPlus"/> supports all logging frameworks that implement the logging abstractions
-        /// provided by microsoft.
-        /// </summary>
-        private static ILoggerFactory CreateSerilogLoggerFactory()
-        {
-            // Add serilog console sink
-            Log.Logger = new LoggerConfiguration()
-                .WriteTo.Console()
-                .CreateLogger();
-
-            return new LoggerFactory().AddSerilog();
         }
 
         /// <summary>
