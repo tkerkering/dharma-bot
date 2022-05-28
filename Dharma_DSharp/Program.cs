@@ -74,7 +74,11 @@ namespace Dharma_DSharp
             {
                 _ = Task.Run(async () =>
                 {
+#if !DEBUG
+                    if (e.Guild.Id != GuildId || e.Channel.Id != ChannelIds.PhantasyNgsAlert)
+#else
                     if (e.Guild.Id != GuildId || e.Channel.Id != ChannelIds.PartyingChannel)
+#endif
                     {
                         return;
                     }
