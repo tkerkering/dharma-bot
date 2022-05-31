@@ -11,6 +11,7 @@ using DSharpPlus.Interactivity;
 using DSharpPlus.SlashCommands;
 using Microsoft.Extensions.DependencyInjection;
 using DSharpPlus.EventArgs;
+using Dharma_DSharp.Extensions;
 
 namespace Dharma_DSharp
 {
@@ -68,18 +69,19 @@ namespace Dharma_DSharp
         /// </summary>
         public static void HookEventListeners(DiscordClient discordClient)
         {
-            discordClient.MessageCreated += DiscordClient_MessageCreated;
-            discordClient.ComponentInteractionCreated += DiscordClient_ComponentInteractionCreated;
-            discordClient.GuildMemberAdded += DiscordClient_GuildMemberAdded;
-            discordClient.GuildMemberUpdated += DiscordClient_GuildMemberUpdated;
-            discordClient.GuildMemberRemoved += DiscordClient_GuildMemberRemoved;
+            /// TODO: Add leveling system with message created event
+            discordClient.MessageCreated += CheckForPhantasyStarAlert;
+            discordClient.ComponentInteractionCreated += RegisterOrDeregisterPartyMember;
+            discordClient.GuildMemberAdded += PostWelcomeEmbed;
+            discordClient.GuildMemberUpdated += MembershipScreeningRoleGrant;
+            discordClient.GuildMemberRemoved += PostKickLeaveBanEmbed;
         }
 
         /// <summary>
         /// Currently used for scanning the phantasy-ngs-alert channel for new uq alerts.
-        /// TODO: Add leveling system
+        /// If a uq or concert is found it will post an announcement like embed in the partying channel.
         /// </summary>
-        private static Task DiscordClient_MessageCreated(DiscordClient client, MessageCreateEventArgs e)
+        private static Task CheckForPhantasyStarAlert(DiscordClient client, MessageCreateEventArgs e)
         {
             _ = Task.Run(async () =>
             {
@@ -94,8 +96,8 @@ namespace Dharma_DSharp
                 {
                     return;
                 }
-                var cutIrrelevant = e.Message.Embeds[0].Description.Substring(indexOfHappening + searchString.Length);
-                var cuttedIrrelevant = cutIrrelevant.Substring(0, cutIrrelevant.IndexOf(' '));
+                var unixTimeStamp = DateTimeOffset.UtcNow.RoundUpToNearest30().ToUnixTimeSeconds();
+                var uqTime = $"<t:{unixTimeStamp}:f>";
 
                 var partyChannel = await client.GetChannelAsync(ChannelIds.PartyingChannel).ConfigureAwait(false);
                 if (partyChannel == null)
@@ -108,10 +110,9 @@ namespace Dharma_DSharp
                 var uqName = e.Message.Embeds[0].Description.Substring(openIndex, closeIndex - openIndex);
 
                 var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", "Party up");
-                var leaveButton = new DiscordButtonComponent(ButtonStyle.Danger, $"leave_button_{uqName}", "Leave");
                 var msg = new DiscordMessageBuilder()
-                    .WithEmbed(PartyingEmbed(uqName + " is happening in " + cuttedIrrelevant + " minutes!", e.Message.Embeds[0].Image.Url.ToString()))
-                    .AddComponents(new DiscordComponent[] { registerButton, leaveButton });
+                    .WithEmbed(GetPartyingEmbed(uqName + " is happening at " + uqTime + "!", e.Message.Embeds[0].Image.Url.ToString()))
+                    .AddComponents(new DiscordComponent[] { registerButton });
                 var message = await partyChannel.SendMessageAsync(msg).ConfigureAwait(false);
 
                 // Will wait for 40ish minutes
@@ -123,24 +124,32 @@ namespace Dharma_DSharp
         }
 
         /// <summary>
-        /// Handles adding/removing members in the party embed
+        /// Handles adding/removing members in the party embed.
         /// </summary>
-        private static Task DiscordClient_ComponentInteractionCreated(DiscordClient client, ComponentInteractionCreateEventArgs e)
+        private static Task RegisterOrDeregisterPartyMember(DiscordClient client, ComponentInteractionCreateEventArgs e)
         {
             _ = Task.Run(async () =>
             {
+                var skipEmptyUserCheck = false;
                 var uqName = string.Empty;
                 if (e.Message.Embeds.FirstOrDefault() is not DiscordEmbed)
                 {
                     return;
                 }
+
+                if (string.IsNullOrEmpty(e.Message.Embeds[0].Description))
+                {
+                    skipEmptyUserCheck = true;
+                }
+
                 uqName = e.Message.Embeds[0].Title.Substring(e.Message.Embeds[0].Title.IndexOf(' '));
                 var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", "Party up");
                 var leaveButton = new DiscordButtonComponent(ButtonStyle.Danger, $"leave_button_{uqName}", "Leave");
 
                 if (e.Id.Contains("register"))
                 {
-                    if (e.Message.Embeds[0].Description.Contains(e.User.Username))
+                    // If the user is already participating, update the embed with the same content.
+                    if (!skipEmptyUserCheck && e.Message.Embeds[0].Description.Contains(e.User.Username))
                     {
                         await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
                             new DiscordInteractionResponseBuilder()
@@ -149,34 +158,46 @@ namespace Dharma_DSharp
                         return;
                     }
 
-                    var indexEmptyUser = e.Message.Embeds[0].Description.IndexOf(". \n") + 2;
-                    if (indexEmptyUser == -1)
+                    var embedDescription = string.Empty;
+                    var thumbnailUrl = string.Empty;
+                    if (!skipEmptyUserCheck)
                     {
-                        // Update embed and remove join button
-                        await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
-                            new DiscordInteractionResponseBuilder()
-                                .AddEmbed(e.Message.Embeds[0])
-                                .AddComponents(leaveButton));
+                        var indexEmptyUser = e.Message.Embeds[0].Description.IndexOf(". \n") + 2;
+                        if (indexEmptyUser == -1)
+                        {
+                            // Update embed and remove join button
+                            await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
+                                new DiscordInteractionResponseBuilder()
+                                    .AddEmbed(e.Message.Embeds[0])
+                                    .AddComponents(leaveButton));
 
-                        // Add new embed
-                        var msg = new DiscordMessageBuilder()
-                            .WithEmbed(PartyingEmbed(e.Message.Embeds[0].Title, e.Message.Embeds[0].Thumbnail.Url.ToString()))
-                            .AddComponents(new DiscordComponent[] { registerButton, leaveButton });
-                        var message = await e.Channel.SendMessageAsync(msg).ConfigureAwait(false);
+                            // Add new embed because the first mpa is full
+                            var msg = new DiscordMessageBuilder()
+                                .WithEmbed(GetPartyingEmbed(e.Message.Embeds[0].Title, e.Message.Embeds[0].Thumbnail.Url.ToString()))
+                                .AddComponents(new DiscordComponent[] { registerButton, leaveButton });
+                            var message = await e.Channel.SendMessageAsync(msg).ConfigureAwait(false);
 
-                        // Will wait for 40ish minutes
-                        var _ = await message.CollectReactionsAsync();
-                        await message.DeleteAsync("The uq is over").ConfigureAwait(false);
-                        return;
+                            // Will wait for 40ish minutes
+                            var _ = await message.CollectReactionsAsync();
+                            await message.DeleteAsync("The uq is over").ConfigureAwait(false);
+                            return;
+                        }
+
+                        embedDescription = e.Message.Embeds[0].Description.Substring(0, indexEmptyUser) + e.User.Username + e.Message.Embeds[0].Description.Substring(indexEmptyUser);
+                        thumbnailUrl = e.Message.Embeds[0].Thumbnail.Url.ToString();
+                    }
+                    else
+                    {
+                        embedDescription = $"Group 1:\n1. {e.User.Username}\n2. \n3. \n4. \n\nGroup2:\n5. \n6. \n7. \n8. \n";
+                        thumbnailUrl = e.Message.Embeds[0].Image.Url.ToString();
                     }
 
-                    var withInsertedUser = e.Message.Embeds[0].Description.Substring(0, indexEmptyUser) + e.User.Username + e.Message.Embeds[0].Description.Substring(indexEmptyUser);
                     await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
                         new DiscordInteractionResponseBuilder()
                             .AddEmbed(new DiscordEmbedBuilder()
                                 .WithTitle(e.Message.Embeds[0].Title)
-                                .WithThumbnail(e.Message.Embeds[0].Thumbnail.Url.ToString())
-                                .WithDescription(withInsertedUser))
+                                .WithThumbnail(thumbnailUrl)
+                                .WithDescription(embedDescription))
                             .AddComponents(new DiscordComponent[] { registerButton, leaveButton }));
                     return;
                 }
@@ -213,7 +234,7 @@ namespace Dharma_DSharp
         /// <summary>
         /// Welcome embed posting
         /// </summary>
-        private static Task DiscordClient_GuildMemberAdded(DiscordClient client, GuildMemberAddEventArgs e)
+        private static Task PostWelcomeEmbed(DiscordClient client, GuildMemberAddEventArgs e)
         {
             _ = Task.Run(async () =>
             {
@@ -238,7 +259,7 @@ namespace Dharma_DSharp
         /// Membership screening logic
         /// => Gives out Homie role if a member accepts the discord in-built rules
         /// </summary>
-        private static Task DiscordClient_GuildMemberUpdated(DiscordClient client, GuildMemberUpdateEventArgs e)
+        private static Task MembershipScreeningRoleGrant(DiscordClient client, GuildMemberUpdateEventArgs e)
         {
             _ = Task.Run(async () =>
             {
@@ -274,7 +295,7 @@ namespace Dharma_DSharp
         /// <summary>
         /// Logic of the kick/leave/ban embed
         /// </summary>
-        private static Task DiscordClient_GuildMemberRemoved(DiscordClient client, GuildMemberRemoveEventArgs e)
+        private static Task PostKickLeaveBanEmbed(DiscordClient client, GuildMemberRemoveEventArgs e)
         {
             _ = Task.Run(async () =>
             {
@@ -328,10 +349,9 @@ namespace Dharma_DSharp
         /// <summary>
         /// A blueprint for the partying embed.
         /// </summary>
-        private static DiscordEmbed PartyingEmbed(string title, string imageUrl)
+        private static DiscordEmbed GetPartyingEmbed(string title, string imageUrl)
         {
-            var embed = new DiscordEmbedBuilder()
-                .WithDescription("Group 1:\n1. \n2. \n3. \n4. \n\nGroup2:\n5. \n6. \n7. \n8. \n");
+            var embed = new DiscordEmbedBuilder();
 
             if (!string.IsNullOrEmpty(title))
             {
@@ -340,7 +360,7 @@ namespace Dharma_DSharp
 
             if (!string.IsNullOrEmpty(imageUrl))
             {
-                embed.WithThumbnail(imageUrl);
+                embed.WithImageUrl(imageUrl);
             }
 
             return embed;
