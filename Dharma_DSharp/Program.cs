@@ -1,14 +1,29 @@
 ﻿using Anotar.Serilog;
+using Dharma_DSharp.Handler;
+using Dharma_DSharp.Modules.Dharma;
 using DSharpPlus;
+using DSharpPlus.Interactivity.Enums;
+using DSharpPlus.Interactivity.Extensions;
+using DSharpPlus.Interactivity;
+using DSharpPlus.SlashCommands;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
+using Dharma_DSharp.Constants;
 
 namespace Dharma_DSharp
 {
     internal sealed class Program
     {
+        private static DiscordController? _discordController;
+
         private static void Main(string[] args)
         {
+            var serviceProvider = new ServiceCollection()
+                .AddSingleton<PartyingSystemHandler>()
+                .AddSingleton<DiscordController>()
+                .BuildServiceProvider();
+
             // Add serilog
             Log.Logger = new LoggerConfiguration()
                 .WriteTo.Console()
@@ -22,17 +37,40 @@ namespace Dharma_DSharp
                 LargeThreshold = 300,
                 LoggerFactory = new LoggerFactory().AddSerilog()
             });
-            DiscordController.CreateCommandExtensions(discordClient);
+
+            CreateCommandExtensions(discordClient, serviceProvider);
+            _discordController = serviceProvider.GetService<DiscordController>();
 
             MainAsync(discordClient).GetAwaiter().GetResult();
         }
 
         private static async Task MainAsync(DiscordClient discordClient)
         {
-            await DiscordController.TryConnectDiscordBot(discordClient).ConfigureAwait(false);
-            DiscordController.HookEventListeners(discordClient);
+            await _discordController!.TryConnectDiscordBot(discordClient).ConfigureAwait(false);
+            _discordController.HookEventListeners(discordClient);
 
             await Task.Delay(-1).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Creates the <see cref="ServiceProvider"/> and the <see cref="SlashCommandsExtension"/>.
+        /// </summary>
+        private static void CreateCommandExtensions(DiscordClient discordClient, ServiceProvider provider)
+        {
+            discordClient.UseInteractivity(new InteractivityConfiguration()
+            {
+                PollBehaviour = PollBehaviour.KeepEmojis,
+                Timeout = TimeSpan.FromMinutes(40)
+            });
+
+            var slash = discordClient.UseSlashCommands(new SlashCommandsConfiguration
+            {
+                Services = provider
+            });
+
+            // Register all command classes here
+            slash.RegisterCommands<GrantCommands>(DharmaConstants.GuildId);
+            slash.RegisterCommands<ListMembersWithRoleCommand>(DharmaConstants.GuildId);
         }
 
         /// <summary>

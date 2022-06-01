@@ -5,13 +5,12 @@ using DSharpPlus.Entities;
 using static Dharma_DSharp.Constants.DharmaConstants;
 using Anotar.Serilog;
 using DSharpPlus.Interactivity.Extensions;
-using System.Linq;
 
 namespace Dharma_DSharp.Handler
 {
-    public static class PartyingSystemHandler
+    public class PartyingSystemHandler
     {
-        public static async Task HandlePhantasyStarFleetAlert(DiscordClient client, MessageCreateEventArgs e)
+        public async Task HandlePhantasyStarFleetAlert(DiscordClient client, MessageCreateEventArgs e)
         {
             var searchString = "is happening in ";
             var indexOfHappening = e.Message.Embeds[0].Description?.IndexOf(searchString) ?? -1;
@@ -46,7 +45,7 @@ namespace Dharma_DSharp.Handler
             await message.DeleteAsync("The uq is over").ConfigureAwait(false);
         }
 
-        public static async Task RegisterOrDeregisterPartyMember(DiscordClient client, ComponentInteractionCreateEventArgs e)
+        public async Task RegisterOrDeregisterPartyMember(DiscordClient client, ComponentInteractionCreateEventArgs e)
         {
             var uqName = e.Message.Embeds[0].Title.Substring(e.Message.Embeds[0].Title.IndexOf(' '));
 
@@ -60,7 +59,7 @@ namespace Dharma_DSharp.Handler
             }
         }
 
-        private static async Task RegisterUser(DiscordClient client, ComponentInteractionCreateEventArgs e, string uqName)
+        private async Task RegisterUser(DiscordClient client, ComponentInteractionCreateEventArgs e, string uqName)
         {
             var skipEmptyUserCheck = false;
             if (string.IsNullOrEmpty(e.Message.Embeds[0].Description))
@@ -123,7 +122,7 @@ namespace Dharma_DSharp.Handler
                     .AddComponents(new DiscordComponent[] { RegisterButton, LeaveButton }));
         }
 
-        private static async Task DeregisterUser(ComponentInteractionCreateEventArgs e, string uqName)
+        private async Task DeregisterUser(ComponentInteractionCreateEventArgs e, string uqName)
         {
             var (RegisterButton, LeaveButton) = GetRegisterAndLeaveButton(uqName);
             var indexOfUser = e.Message.Embeds[0].Description.IndexOf(e.User.Username);
@@ -158,7 +157,7 @@ namespace Dharma_DSharp.Handler
                     .AddComponents(new DiscordComponent[] { RegisterButton, LeaveButton }));
         }
 
-        private static (DiscordButtonComponent RegisterButton, DiscordButtonComponent LeaveButton) GetRegisterAndLeaveButton(string uqName)
+        private (DiscordButtonComponent RegisterButton, DiscordButtonComponent LeaveButton) GetRegisterAndLeaveButton(string uqName)
         {
             var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", "Party up");
             var leaveButton = new DiscordButtonComponent(ButtonStyle.Danger, $"leave_button_{uqName}", "Leave");
@@ -169,7 +168,7 @@ namespace Dharma_DSharp.Handler
         /// <summary>
         /// A blueprint for the partying embed.
         /// </summary>
-        private static DiscordEmbed GetPartyingEmbed(string title, string imageUrl)
+        private DiscordEmbed GetPartyingEmbed(string title, string imageUrl)
         {
             var embed = new DiscordEmbedBuilder();
 

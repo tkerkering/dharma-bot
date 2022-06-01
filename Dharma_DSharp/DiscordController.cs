@@ -4,21 +4,21 @@ using DSharpPlus;
 using DSharpPlus.Entities;
 using static Dharma_DSharp.Constants.DharmaConstants;
 using Dharma_DSharp.Constants;
-using DSharpPlus.Interactivity.Extensions;
-using Dharma_DSharp.Modules.Dharma;
-using DSharpPlus.Interactivity.Enums;
-using DSharpPlus.Interactivity;
-using DSharpPlus.SlashCommands;
-using Microsoft.Extensions.DependencyInjection;
 using DSharpPlus.EventArgs;
-using Dharma_DSharp.Extensions;
 using Dharma_DSharp.Handler;
 
 namespace Dharma_DSharp
 {
-    public static class DiscordController
+    public class DiscordController
     {
-        public static async Task TryConnectDiscordBot(DiscordClient discordClient)
+        private readonly PartyingSystemHandler _partyingSystem;
+
+        public DiscordController(PartyingSystemHandler partyingSystem)
+        {
+            _partyingSystem = partyingSystem;
+        }
+
+        public async Task TryConnectDiscordBot(DiscordClient discordClient)
         {
             try
             {
@@ -42,33 +42,9 @@ namespace Dharma_DSharp
         }
 
         /// <summary>
-        /// Creates the <see cref="ServiceProvider"/> and the <see cref="SlashCommandsExtension"/>.
-        /// </summary>
-        public static void CreateCommandExtensions(DiscordClient discordClient)
-        {
-            var serviceProvider = new ServiceCollection()
-                .BuildServiceProvider();
-
-            discordClient.UseInteractivity(new InteractivityConfiguration()
-            {
-                PollBehaviour = PollBehaviour.KeepEmojis,
-                Timeout = TimeSpan.FromMinutes(40)
-            });
-
-            var slash = discordClient.UseSlashCommands(new SlashCommandsConfiguration
-            {
-                Services = serviceProvider
-            });
-
-            // Register all command classes here
-            slash.RegisterCommands<GrantCommands>(GuildId);
-            slash.RegisterCommands<ListMembersWithRoleCommand>(GuildId);
-        }
-
-        /// <summary>
         /// Hooks various event listeners of the <paramref name="discordClient"/> to logic.
         /// </summary>
-        public static void HookEventListeners(DiscordClient discordClient)
+        public void HookEventListeners(DiscordClient discordClient)
         {
             /// TODO: Add leveling system with message created event
             discordClient.MessageCreated += CheckForPhantasyStarAlert;
@@ -82,7 +58,7 @@ namespace Dharma_DSharp
         /// Currently used for scanning the phantasy-ngs-alert channel for new uq alerts.
         /// If a uq or concert is found it will post an announcement like embed in the partying channel.
         /// </summary>
-        private static Task CheckForPhantasyStarAlert(DiscordClient client, MessageCreateEventArgs e)
+        private Task CheckForPhantasyStarAlert(DiscordClient client, MessageCreateEventArgs e)
         {
             _ = Task.Run(async () =>
             {
@@ -92,7 +68,7 @@ namespace Dharma_DSharp
                 }
                 LogTo.Information("New message in ngs alert channel, checking if it's an alert!");
 
-                await PartyingSystemHandler.HandlePhantasyStarFleetAlert(client, e).ConfigureAwait(false);
+                await _partyingSystem.HandlePhantasyStarFleetAlert(client, e).ConfigureAwait(false);
             });
 
             return Task.CompletedTask;
@@ -101,7 +77,7 @@ namespace Dharma_DSharp
         /// <summary>
         /// Handles adding/removing members in the party embed.
         /// </summary>
-        private static Task RegisterOrDeregisterPartyMember(DiscordClient client, ComponentInteractionCreateEventArgs e)
+        private Task RegisterOrDeregisterPartyMember(DiscordClient client, ComponentInteractionCreateEventArgs e)
         {
             _ = Task.Run(async () =>
             {
@@ -110,7 +86,7 @@ namespace Dharma_DSharp
                     return;
                 }
 
-                await PartyingSystemHandler.RegisterOrDeregisterPartyMember(client, e).ConfigureAwait(false);
+                await _partyingSystem.RegisterOrDeregisterPartyMember(client, e).ConfigureAwait(false);
             });
 
             return Task.CompletedTask;
@@ -119,7 +95,7 @@ namespace Dharma_DSharp
         /// <summary>
         /// Welcome embed posting
         /// </summary>
-        private static Task PostWelcomeEmbed(DiscordClient client, GuildMemberAddEventArgs e)
+        private Task PostWelcomeEmbed(DiscordClient client, GuildMemberAddEventArgs e)
         {
             _ = Task.Run(async () =>
             {
@@ -144,7 +120,7 @@ namespace Dharma_DSharp
         /// Membership screening logic
         /// => Gives out Homie role if a member accepts the discord in-built rules
         /// </summary>
-        private static Task MembershipScreeningRoleGrant(DiscordClient client, GuildMemberUpdateEventArgs e)
+        private Task MembershipScreeningRoleGrant(DiscordClient client, GuildMemberUpdateEventArgs e)
         {
             _ = Task.Run(async () =>
             {
@@ -180,7 +156,7 @@ namespace Dharma_DSharp
         /// <summary>
         /// Logic of the kick/leave/ban embed
         /// </summary>
-        private static Task PostKickLeaveBanEmbed(DiscordClient client, GuildMemberRemoveEventArgs e)
+        private Task PostKickLeaveBanEmbed(DiscordClient client, GuildMemberRemoveEventArgs e)
         {
             _ = Task.Run(async () =>
             {
@@ -237,14 +213,14 @@ namespace Dharma_DSharp
         /// <param name="title">Title of the embed.</param>
         /// <param name="topRightCornerThumbnail">Provide a valid uri.</param>
         /// <param name="footerImage">Provide a valid uri.</param>
-        private async static Task SendEmbedToWelcomeHall(DiscordClient discordClient,
+        private async Task SendEmbedToWelcomeHall(DiscordClient discordClient,
             string description,
             DiscordColor discordColor,
             string title = "",
             string topRightCornerThumbnail = "",
             string footerImage = "")
         {
-            var welcomeHall = await discordClient.GetChannelAsync(DharmaConstants.ChannelIds.WelcomeHall);
+            var welcomeHall = await discordClient.GetChannelAsync(ChannelIds.WelcomeHall);
             description = description.Replace(@"\n", "\n");
             var embed = new DiscordEmbedBuilder()
                 .WithDescription(description)
