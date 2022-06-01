@@ -12,6 +12,7 @@ using DSharpPlus.SlashCommands;
 using Microsoft.Extensions.DependencyInjection;
 using DSharpPlus.EventArgs;
 using Dharma_DSharp.Extensions;
+using Dharma_DSharp.Handler;
 
 namespace Dharma_DSharp
 {
@@ -89,35 +90,9 @@ namespace Dharma_DSharp
                 {
                     return;
                 }
+                LogTo.Information("New message in ngs alert channel, checking if it's an alert!");
 
-                var searchString = "is happening in ";
-                var indexOfHappening = e.Message.Embeds[0].Description.IndexOf(searchString);
-                if (indexOfHappening == -1 || indexOfHappening == 0)
-                {
-                    return;
-                }
-                var unixTimeStamp = DateTimeOffset.UtcNow.RoundUpToNearest30().ToUnixTimeSeconds();
-                var uqTime = $"<t:{unixTimeStamp}:f>";
-
-                var partyChannel = await client.GetChannelAsync(ChannelIds.PartyingChannel).ConfigureAwait(false);
-                if (partyChannel == null)
-                {
-                    return;
-                }
-
-                var openIndex = e.Message.Embeds[0].Description.IndexOf('(') + 1;
-                var closeIndex = e.Message.Embeds[0].Description.IndexOf(')');
-                var uqName = e.Message.Embeds[0].Description.Substring(openIndex, closeIndex - openIndex);
-
-                var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", "Party up");
-                var msg = new DiscordMessageBuilder()
-                    .WithEmbed(GetPartyingEmbed(uqName + " is happening at " + uqTime + "!", e.Message.Embeds[0].Image.Url.ToString()))
-                    .AddComponents(new DiscordComponent[] { registerButton });
-                var message = await partyChannel.SendMessageAsync(msg).ConfigureAwait(false);
-
-                // Will wait for 40ish minutes
-                var _ = await message.CollectReactionsAsync();
-                await message.DeleteAsync("The uq is over").ConfigureAwait(false);
+                await PartyingSystemHandler.HandlePhantasyStarFleetAlert(client, e).ConfigureAwait(false);
             });
 
             return Task.CompletedTask;
@@ -130,102 +105,12 @@ namespace Dharma_DSharp
         {
             _ = Task.Run(async () =>
             {
-                var skipEmptyUserCheck = false;
-                var uqName = string.Empty;
-                if (e.Message.Embeds.FirstOrDefault() is not DiscordEmbed)
+                if (e.Guild.Id != GuildId || e.Channel.Id != ChannelIds.PartyingChannel || e.Message.Embeds.FirstOrDefault() == null)
                 {
                     return;
                 }
 
-                if (string.IsNullOrEmpty(e.Message.Embeds[0].Description))
-                {
-                    skipEmptyUserCheck = true;
-                }
-
-                uqName = e.Message.Embeds[0].Title.Substring(e.Message.Embeds[0].Title.IndexOf(' '));
-                var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", "Party up");
-                var leaveButton = new DiscordButtonComponent(ButtonStyle.Danger, $"leave_button_{uqName}", "Leave");
-
-                if (e.Id.Contains("register"))
-                {
-                    // If the user is already participating, update the embed with the same content.
-                    if (!skipEmptyUserCheck && e.Message.Embeds[0].Description.Contains(e.User.Username))
-                    {
-                        await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
-                            new DiscordInteractionResponseBuilder()
-                                .AddEmbed(e.Message.Embeds[0])
-                                .AddComponents(new DiscordComponent[] { registerButton, leaveButton }));
-                        return;
-                    }
-
-                    var embedDescription = string.Empty;
-                    var thumbnailUrl = string.Empty;
-                    if (!skipEmptyUserCheck)
-                    {
-                        var indexEmptyUser = e.Message.Embeds[0].Description.IndexOf(". \n") + 2;
-                        if (indexEmptyUser == -1)
-                        {
-                            // Update embed and remove join button
-                            await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
-                                new DiscordInteractionResponseBuilder()
-                                    .AddEmbed(e.Message.Embeds[0])
-                                    .AddComponents(leaveButton));
-
-                            // Add new embed because the first mpa is full
-                            var msg = new DiscordMessageBuilder()
-                                .WithEmbed(GetPartyingEmbed(e.Message.Embeds[0].Title, e.Message.Embeds[0].Thumbnail.Url.ToString()))
-                                .AddComponents(new DiscordComponent[] { registerButton, leaveButton });
-                            var message = await e.Channel.SendMessageAsync(msg).ConfigureAwait(false);
-
-                            // Will wait for 40ish minutes
-                            var _ = await message.CollectReactionsAsync();
-                            await message.DeleteAsync("The uq is over").ConfigureAwait(false);
-                            return;
-                        }
-
-                        embedDescription = e.Message.Embeds[0].Description.Substring(0, indexEmptyUser) + e.User.Username + e.Message.Embeds[0].Description.Substring(indexEmptyUser);
-                        thumbnailUrl = e.Message.Embeds[0].Thumbnail.Url.ToString();
-                    }
-                    else
-                    {
-                        embedDescription = $"Group 1:\n1. {e.User.Username}\n2. \n3. \n4. \n\nGroup2:\n5. \n6. \n7. \n8. \n";
-                        thumbnailUrl = e.Message.Embeds[0].Image.Url.ToString();
-                    }
-
-                    await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
-                        new DiscordInteractionResponseBuilder()
-                            .AddEmbed(new DiscordEmbedBuilder()
-                                .WithTitle(e.Message.Embeds[0].Title)
-                                .WithThumbnail(thumbnailUrl)
-                                .WithDescription(embedDescription))
-                            .AddComponents(new DiscordComponent[] { registerButton, leaveButton }));
-                    return;
-                }
-                else if (e.Id.Contains("leave"))
-                {
-                    var indexOfUser = e.Message.Embeds[0].Description.IndexOf(e.User.Username);
-                    if (indexOfUser == -1 || indexOfUser == 0)
-                    {
-                        await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
-                            new DiscordInteractionResponseBuilder()
-                                .AddEmbed(e.Message.Embeds[0])
-                                .AddComponents(new DiscordComponent[] { registerButton, leaveButton }));
-                        return;
-                    }
-                    var description = e.Message.Embeds[0].Description;
-
-                    var withRemovedUser = description.Substring(0, indexOfUser) + description.Substring(indexOfUser + e.User.Username.Length);
-                    await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
-                        new DiscordInteractionResponseBuilder()
-                            .AddEmbed(new DiscordEmbedBuilder()
-                                .WithTitle(e.Message.Embeds[0].Title)
-                                .WithThumbnail(e.Message.Embeds[0].Thumbnail.Url.ToString())
-                                .WithDescription(withRemovedUser))
-                            .AddComponents(new DiscordComponent[] { registerButton, leaveButton }));
-                    return;
-                }
-
-                return;
+                await PartyingSystemHandler.RegisterOrDeregisterPartyMember(client, e).ConfigureAwait(false);
             });
 
             return Task.CompletedTask;
@@ -344,26 +229,6 @@ namespace Dharma_DSharp
             });
 
             return Task.CompletedTask;
-        }
-
-        /// <summary>
-        /// A blueprint for the partying embed.
-        /// </summary>
-        private static DiscordEmbed GetPartyingEmbed(string title, string imageUrl)
-        {
-            var embed = new DiscordEmbedBuilder();
-
-            if (!string.IsNullOrEmpty(title))
-            {
-                embed.WithTitle(title);
-            }
-
-            if (!string.IsNullOrEmpty(imageUrl))
-            {
-                embed.WithImageUrl(imageUrl);
-            }
-
-            return embed;
         }
 
         /// <param name="discordClient">Client that is used to send the embed.</param>
