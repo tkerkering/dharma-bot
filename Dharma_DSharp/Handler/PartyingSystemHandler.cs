@@ -34,11 +34,11 @@ namespace Dharma_DSharp.Handler
             var closeIndex = e.Message.Embeds[0].Description.IndexOf(')');
             var uqName = e.Message.Embeds[0].Description.Substring(openIndex, closeIndex - openIndex);
             var isConcert = e.Message.Embeds[0].Description.Contains("concert");
+            var (RegisterButton, _) = GetRegisterAndLeaveButton(uqName, isConcert);
 
-            var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", isConcert ? "Join" : "Party up");
             var msg = new DiscordMessageBuilder()
-                .WithEmbed(GetPartyingEmbed(uqName + " is happening at " + uqTime + "!", e.Message.Embeds[0].Image.Url.ToString()))
-                .AddComponents(new DiscordComponent[] { registerButton });
+                .WithEmbed(GetPartyingEmbed(uqName + " is happening at " + uqTime + "!", string.Empty, e.Message.Embeds[0].Image.Url.ToString(), string.Empty))
+                .AddComponents(new DiscordComponent[] { RegisterButton });
             var message = await partyChannel.SendMessageAsync(msg).ConfigureAwait(false);
 
             // Will wait for 40ish minutes
@@ -96,7 +96,7 @@ namespace Dharma_DSharp.Handler
 
                     // Add new embed because the first mpa is full
                     var msg = new DiscordMessageBuilder()
-                        .WithEmbed(GetPartyingEmbed(e.Message.Embeds[0].Title, e.Message.Embeds[0].Thumbnail.Url.ToString()))
+                        .WithEmbed(GetPartyingEmbed(e.Message.Embeds[0].Title, string.Empty, e.Message.Embeds[0].Thumbnail.Url.ToString(), string.Empty))
                         .AddComponents(new DiscordComponent[] { RegisterButton, LeaveButton });
                     var message = await e.Channel.SendMessageAsync(msg).ConfigureAwait(false);
 
@@ -117,10 +117,7 @@ namespace Dharma_DSharp.Handler
 
             await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
                 new DiscordInteractionResponseBuilder()
-                    .AddEmbed(new DiscordEmbedBuilder()
-                        .WithTitle(e.Message.Embeds[0].Title)
-                        .WithThumbnail(thumbnailUrl)
-                        .WithDescription(embedDescription))
+                    .AddEmbed(GetPartyingEmbed(e.Message.Embeds[0].Title, embedDescription, string.Empty, thumbnailUrl))
                     .AddComponents(new DiscordComponent[] { RegisterButton, LeaveButton }));
         }
 
@@ -143,19 +140,14 @@ namespace Dharma_DSharp.Handler
             {
                 await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
                 new DiscordInteractionResponseBuilder()
-                    .AddEmbed(new DiscordEmbedBuilder()
-                        .WithTitle(e.Message.Embeds[0].Title)
-                        .WithImageUrl(e.Message.Embeds[0].Thumbnail.Url.ToString()))
+                    .AddEmbed(GetPartyingEmbed(e.Message.Embeds[0].Title, string.Empty, e.Message.Embeds[0].Thumbnail.Url.ToString(), string.Empty))
                     .AddComponents(new DiscordComponent[] { RegisterButton }));
                 return;
             }
 
             await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
                 new DiscordInteractionResponseBuilder()
-                    .AddEmbed(new DiscordEmbedBuilder()
-                        .WithTitle(e.Message.Embeds[0].Title)
-                        .WithThumbnail(e.Message.Embeds[0].Thumbnail.Url.ToString())
-                        .WithDescription(withRemovedUser))
+                    .AddEmbed(GetPartyingEmbed(e.Message.Embeds[0].Title, withRemovedUser, string.Empty, e.Message.Embeds[0].Thumbnail.Url.ToString()))
                     .AddComponents(new DiscordComponent[] { RegisterButton, LeaveButton }));
         }
 
@@ -170,7 +162,7 @@ namespace Dharma_DSharp.Handler
         /// <summary>
         /// A blueprint for the partying embed.
         /// </summary>
-        private DiscordEmbed GetPartyingEmbed(string title, string imageUrl)
+        private DiscordEmbed GetPartyingEmbed(string title, string description, string imageUrl, string thumbnailUrl)
         {
             var embed = new DiscordEmbedBuilder();
 
@@ -182,6 +174,16 @@ namespace Dharma_DSharp.Handler
             if (!string.IsNullOrEmpty(imageUrl))
             {
                 embed.WithImageUrl(imageUrl);
+            }
+
+            if (!string.IsNullOrEmpty(thumbnailUrl))
+            {
+                embed.WithThumbnail(thumbnailUrl);
+            }
+
+            if (!string.IsNullOrEmpty(description))
+            {
+                embed.WithDescription(description);
             }
 
             return embed;
