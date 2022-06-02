@@ -27,7 +27,7 @@ namespace Dharma_DSharp.Handler
                 return;
             }
 
-            var unixTimeStamp = DateTimeOffset.UtcNow.RoundUpToNearest30().ToUnixTimeSeconds();
+            var unixTimeStamp = DateTimeOffset.UtcNow.RoundToNearestHalfHour().ToUnixTimeSeconds();
             var uqTime = $"<t:{unixTimeStamp}:f>";
 
             var openIndex = e.Message.Embeds[0].Description.IndexOf('(') + 1;

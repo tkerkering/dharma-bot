@@ -2,11 +2,20 @@
 {
     public static class DateTimeOffsetExtensions
     {
-        public static DateTimeOffset RoundUpToNearest30(this DateTimeOffset datetimeoffset)
+        public static DateTimeOffset RoundToNearestHalfHour(this DateTimeOffset dateTimeOffset)
         {
-            double atMinuteInBlock = datetimeoffset.Minute % 30;
-            double minutesToAdd = 30 - atMinuteInBlock;
-            return datetimeoffset.AddMinutes(minutesToAdd);
+            int amountToAdd;
+
+            if ((dateTimeOffset.Minute <= 15) || ((dateTimeOffset.Minute > 30) && (dateTimeOffset.Minute <= 45)))
+            {
+                amountToAdd = -(dateTimeOffset.Minute % 30);
+            }
+            else
+            {
+                amountToAdd = dateTimeOffset.Minute % 30;
+            }
+
+            return dateTimeOffset.AddMinutes(amountToAdd);
         }
     }
 }
