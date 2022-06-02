@@ -49,6 +49,7 @@ namespace Dharma_DSharp
             await _discordController!.TryConnectDiscordBot(discordClient).ConfigureAwait(false);
             _discordController.HookEventListeners(discordClient);
 
+            LogTo.Information("Started successfully~");
             await Task.Delay(-1).ConfigureAwait(false);
         }
 
