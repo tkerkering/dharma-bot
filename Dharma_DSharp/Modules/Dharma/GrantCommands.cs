@@ -10,8 +10,6 @@ namespace Dharma_DSharp.Modules.Dharma
 {
     internal class GrantCommands : ApplicationCommandModule
     {
-        public Random Rando { private get; set; }    // Implied public setter.
-
         [SlashCommand("grant", Strings.GrantCommandDescription)]
         [SlashRequireOfficerId]
         public async Task GrantCommand(InteractionContext ctx,
