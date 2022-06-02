@@ -33,8 +33,9 @@ namespace Dharma_DSharp.Handler
             var openIndex = e.Message.Embeds[0].Description.IndexOf('(') + 1;
             var closeIndex = e.Message.Embeds[0].Description.IndexOf(')');
             var uqName = e.Message.Embeds[0].Description.Substring(openIndex, closeIndex - openIndex);
+            var isConcert = e.Message.Embeds[0].Description.Contains("concert");
 
-            var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", "Party up");
+            var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", isConcert ? "Join" : "Party up");
             var msg = new DiscordMessageBuilder()
                 .WithEmbed(GetPartyingEmbed(uqName + " is happening at " + uqTime + "!", e.Message.Embeds[0].Image.Url.ToString()))
                 .AddComponents(new DiscordComponent[] { registerButton });
@@ -45,21 +46,22 @@ namespace Dharma_DSharp.Handler
             await message.DeleteAsync("The uq is over").ConfigureAwait(false);
         }
 
-        public async Task RegisterOrDeregisterPartyMember(DiscordClient client, ComponentInteractionCreateEventArgs e)
+        public async Task RegisterOrDeregisterPartyMember(DiscordClient _, ComponentInteractionCreateEventArgs e)
         {
             var uqName = e.Message.Embeds[0].Title.Substring(e.Message.Embeds[0].Title.IndexOf(' '));
+            var isConcert = e.Message.Embeds[0].Title.Contains("concert");
 
             if (e.Id.Contains("register"))
             {
-                await RegisterUser(client, e, uqName).ConfigureAwait(false);
+                await RegisterUser(e, uqName, isConcert).ConfigureAwait(false);
             }
             else if (e.Id.Contains("leave"))
             {
-                await DeregisterUser(e, uqName).ConfigureAwait(false);
+                await DeregisterUser(e, uqName, isConcert).ConfigureAwait(false);
             }
         }
 
-        private async Task RegisterUser(DiscordClient client, ComponentInteractionCreateEventArgs e, string uqName)
+        private async Task RegisterUser(ComponentInteractionCreateEventArgs e, string uqName, bool isConcert)
         {
             var skipEmptyUserCheck = false;
             if (string.IsNullOrEmpty(e.Message.Embeds[0].Description))
@@ -67,7 +69,7 @@ namespace Dharma_DSharp.Handler
                 skipEmptyUserCheck = true;
             }
 
-            var (RegisterButton, LeaveButton) = GetRegisterAndLeaveButton(uqName);
+            var (RegisterButton, LeaveButton) = GetRegisterAndLeaveButton(uqName, isConcert);
 
             // If the user is already participating, update the embed with the same content.
             if (!skipEmptyUserCheck && e.Message.Embeds[0].Description.Contains(e.User.Username))
@@ -122,9 +124,9 @@ namespace Dharma_DSharp.Handler
                     .AddComponents(new DiscordComponent[] { RegisterButton, LeaveButton }));
         }
 
-        private async Task DeregisterUser(ComponentInteractionCreateEventArgs e, string uqName)
+        private async Task DeregisterUser(ComponentInteractionCreateEventArgs e, string uqName, bool isConcert)
         {
-            var (RegisterButton, LeaveButton) = GetRegisterAndLeaveButton(uqName);
+            var (RegisterButton, LeaveButton) = GetRegisterAndLeaveButton(uqName, isConcert);
             var indexOfUser = e.Message.Embeds[0].Description.IndexOf(e.User.Username);
             if (indexOfUser == -1 || indexOfUser == 0)
             {
@@ -157,9 +159,9 @@ namespace Dharma_DSharp.Handler
                     .AddComponents(new DiscordComponent[] { RegisterButton, LeaveButton }));
         }
 
-        private (DiscordButtonComponent RegisterButton, DiscordButtonComponent LeaveButton) GetRegisterAndLeaveButton(string uqName)
+        private (DiscordButtonComponent RegisterButton, DiscordButtonComponent LeaveButton) GetRegisterAndLeaveButton(string uqName, bool isConcert)
         {
-            var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", "Party up");
+            var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", isConcert ? "Join" : "Party up");
             var leaveButton = new DiscordButtonComponent(ButtonStyle.Danger, $"leave_button_{uqName}", "Leave");
 
             return (registerButton, leaveButton);
