@@ -71,6 +71,7 @@ namespace Dharma_DSharp
 
             // Register all command classes here
             slash.RegisterCommands<GrantCommands>(DharmaConstants.GuildId);
+            slash.RegisterCommands<MoveCommands>(DharmaConstants.GuildId);
             slash.RegisterCommands<ListMembersWithRoleCommand>(DharmaConstants.GuildId);
         }
 
