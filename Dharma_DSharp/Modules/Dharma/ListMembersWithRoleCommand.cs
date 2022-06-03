@@ -8,10 +8,10 @@ namespace Dharma_DSharp.Modules.Dharma
 {
     internal class ListMembersWithRoleCommand : ApplicationCommandModule
     {
-        [SlashCommand("list", "To be removed")]
+        [SlashCommand("list", "Lists all members with the given role")]
         [SlashRequireOfficerId]
         public async Task ListMemberCommand(InteractionContext ctx,
-            [Option("role", "Wawda")] DiscordRole role)
+            [Option("role", "Role to list members of")] DiscordRole role)
         {
             LogTo.Debug($"{ctx.Member.Username} will list all members with the following role => {role.Name}");
             await ctx.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource).ConfigureAwait(false);

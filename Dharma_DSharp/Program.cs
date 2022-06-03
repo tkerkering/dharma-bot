@@ -19,15 +19,15 @@ namespace Dharma_DSharp
 
         private static void Main(string[] args)
         {
+            // Add serilog first
+            Log.Logger = new LoggerConfiguration()
+                .WriteTo.Console()
+                .CreateLogger();
+
             var serviceProvider = new ServiceCollection()
                 .AddSingleton<PartyingSystemHandler>()
                 .AddSingleton<DiscordController>()
                 .BuildServiceProvider();
-
-            // Add serilog
-            Log.Logger = new LoggerConfiguration()
-                .WriteTo.Console()
-                .CreateLogger();
 
             var discordClient = new DiscordClient(new DiscordConfiguration()
             {
