@@ -20,7 +20,7 @@ namespace Dharma_DSharp.Modules.Dharma
             await ctx.CreateResponseAsync(InteractionResponseType.DeferredChannelMessageWithSource).ConfigureAwait(false);
             try
             {
-                var messages = await ctx.Channel.GetMessagesAsync(Convert.ToInt32(amount)).ConfigureAwait(false);
+                var messages = await ctx.Channel.GetMessagesAsync(Convert.ToInt32(amount) + 1).ConfigureAwait(false);
                 await MoveMessageToOtherChannel(ctx.Member, new List<DiscordMessage>(messages), destination, ctx).ConfigureAwait(false);
             }
             catch (Exception e)
@@ -39,14 +39,8 @@ namespace Dharma_DSharp.Modules.Dharma
         private static async Task MoveMessageToOtherChannel(DiscordMember moderator, List<DiscordMessage> messages, DiscordChannel destination, BaseContext ctx)
         {
             LogTo.Information($"Trying to move {messages} to {destination}");
-            var messageString = messages.Count > 1 ? "messages" : "message";
-            var toDelete = messages.Where(msg => msg.MessageType != MessageType.Default).ToList();
             var filteredMessages = messages.Where(msg => msg.MessageType == MessageType.Default).ToList();
-
-            foreach (var deleteMsg in toDelete)
-            {
-                await deleteMsg.DeleteAsync().ConfigureAwait(false);
-            }
+            var messageString = filteredMessages.Count > 1 ? "messages" : "message";
 
             for (var i = 0; i < filteredMessages.Count; i += 10)
             {
@@ -55,6 +49,11 @@ namespace Dharma_DSharp.Modules.Dharma
                     .WithContent($"{moderator.Username} moved {amountOfMessagesToMove} {messageString} here!");
                 for (var j = 0; j < filteredMessages.Count; j++)
                 {
+                    if (filteredMessages[j].Id == ctx.Channel.LastMessageId)
+                    {
+                        continue;
+                    }
+
                     var embedToAdd = new DiscordEmbedBuilder()
                         .WithAuthor(filteredMessages[j].Author.Username, string.Empty, filteredMessages[j].Author.AvatarUrl)
                         .WithDescription(filteredMessages[j].Content);
@@ -63,13 +62,14 @@ namespace Dharma_DSharp.Modules.Dharma
                         embedToAdd.WithImageUrl(filteredMessages[j].Attachments[0].Url);
                     }
                     filledMoveMessage.AddEmbed(embedToAdd);
+
                     await filteredMessages[j].DeleteAsync().ConfigureAwait(false);
                 }
 
                 await destination.SendMessageAsync(filledMoveMessage).ConfigureAwait(false);
             }
 
-            var replyContent = $"Moved {messages.Count} {messageString} to <#{destination.Id}>";
+            var replyContent = $"Moved {filteredMessages.Count} {messageString} to <#{destination.Id}>";
             await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent(replyContent)).ConfigureAwait(false);
             LogTo.Information($"Send {messages} to {destination}!");
         }
