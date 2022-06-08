@@ -43,6 +43,18 @@
                 SupportOfficer
             };
 
+            public static readonly List<ulong> AllGuildMembers = new()
+            {
+                Dreamer,
+                ExecutiveOfficer,
+                DiscordOfficer,
+                ArtDirector,
+                Recruiter,
+                SupportOfficer,
+                ArksOperative,
+                VeteranArksOperative
+            };
+
             // The Dharma alliance member role id.
             public static readonly ulong ArksOperative = 984215403859439676;
 
