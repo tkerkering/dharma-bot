@@ -50,6 +50,11 @@ namespace Dharma_DSharp
             _discordController.HookEventListeners(discordClient);
 
             LogTo.Information("Started successfully~");
+            
+            // If no slash command is registered, outcomment the registration below, we can overwrite all commands with nothing.
+            // This is useful for removing the duplicated commands of the test bot.
+            // await discordClient.BulkOverwriteGuildApplicationCommandsAsync(DharmaConstants.GuildId, new List<DiscordApplicationCommand>()).ConfigureAwait(false);
+
             await Task.Delay(-1).ConfigureAwait(false);
         }
 
