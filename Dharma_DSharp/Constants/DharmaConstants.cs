@@ -44,7 +44,10 @@
             };
 
             // The Dharma alliance member role id.
-            public static readonly ulong ArksOperative = 703775060833599599;
+            public static readonly ulong ArksOperative = 984215403859439676;
+
+            // The Dharma ex alliance member role id.
+            public static readonly ulong VeteranArksOperative = 703775060833599599;
 
             // The Dharma community member role id.
             public static readonly ulong HomieId = 729777643565744240;
