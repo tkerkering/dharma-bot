@@ -89,6 +89,7 @@ namespace Dharma_DSharp.Modules.Dharma
                     if (isAuthorized)
                     {
                         await message.DeleteAsync("Host wanted to delete his event").ConfigureAwait(false);
+                        await ctx.EditResponseAsync(new DiscordWebhookBuilder().WithContent("Event deleted successfully.")).ConfigureAwait(false);
                     }
                 }
             }
