@@ -31,14 +31,14 @@ namespace Dharma_DSharp.Handler
             var leaveButton = GetLeaveButton();
 
             // If the user is already participating, update the embed with the same content.
-            /*if (e.Message.Embeds[0].Description.Contains(e.User.Username))
+            if (e.Message.Embeds[0].Description.Contains(e.User.Username))
             {
                 await e.Interaction.CreateResponseAsync(InteractionResponseType.UpdateMessage,
                     new DiscordInteractionResponseBuilder()
                         .AddEmbed(e.Message.Embeds[0])
                         .AddComponents(new DiscordComponent[] { registerButton, leaveButton }));
                 return;
-            }*/
+            }
 
             var cuttedByDivisor = e.Message.Embeds[0].Description.Split('|');
             var cuttedByNewLine = e.Message.Embeds[0].Description.Split("\n");
