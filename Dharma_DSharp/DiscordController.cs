@@ -12,10 +12,12 @@ namespace Dharma_DSharp
     public class DiscordController
     {
         private readonly PartyingSystemHandler _partyingSystem;
+        private readonly RegistrationDeregistrationHandler _partyEventHandler;
 
-        public DiscordController(PartyingSystemHandler partyingSystem)
+        public DiscordController(PartyingSystemHandler partyingSystem, RegistrationDeregistrationHandler partyEventHandler)
         {
             _partyingSystem = partyingSystem;
+            _partyEventHandler = partyEventHandler;
         }
 
         public async Task TryConnectDiscordBot(DiscordClient discordClient)
@@ -75,18 +77,19 @@ namespace Dharma_DSharp
         }
 
         /// <summary>
-        /// Handles adding/removing members in the party embed.
+        /// Handles adding/removing members in the party/event embeds.
         /// </summary>
         private Task RegisterOrDeregisterPartyMember(DiscordClient client, ComponentInteractionCreateEventArgs e)
         {
             _ = Task.Run(async () =>
             {
-                if (e.Guild.Id != GuildId || e.Channel.Id != ChannelIds.PartyingChannel || e.Message.Embeds.FirstOrDefault() == null)
+                if (e.Guild.Id != GuildId || e.Message.Embeds.FirstOrDefault() == null)
                 {
                     return;
                 }
 
                 await _partyingSystem.RegisterOrDeregisterPartyMember(client, e).ConfigureAwait(false);
+                await _partyEventHandler.RegisterOrDeregisterEventAttendee(client, e).ConfigureAwait(false);
             });
 
             return Task.CompletedTask;

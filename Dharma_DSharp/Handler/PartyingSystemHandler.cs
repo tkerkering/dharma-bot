@@ -51,11 +51,11 @@ namespace Dharma_DSharp.Handler
             var uqName = e.Message.Embeds[0].Title.Substring(e.Message.Embeds[0].Title.IndexOf(' '));
             var isConcert = e.Message.Embeds[0].Title.Contains("concert");
 
-            if (e.Id.Contains("register"))
+            if (e.Id.Contains("p_register"))
             {
                 await RegisterUser(e, uqName, isConcert).ConfigureAwait(false);
             }
-            else if (e.Id.Contains("leave"))
+            else if (e.Id.Contains("p_leave"))
             {
                 await DeregisterUser(e, uqName, isConcert).ConfigureAwait(false);
             }
@@ -153,8 +153,8 @@ namespace Dharma_DSharp.Handler
 
         private (DiscordButtonComponent RegisterButton, DiscordButtonComponent LeaveButton) GetRegisterAndLeaveButton(string uqName, bool isConcert)
         {
-            var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"register_button_{uqName}", isConcert ? "Join" : "Party up");
-            var leaveButton = new DiscordButtonComponent(ButtonStyle.Danger, $"leave_button_{uqName}", "Leave");
+            var registerButton = new DiscordButtonComponent(ButtonStyle.Success, $"p_register_button_{uqName}", isConcert ? "Join" : "Party up");
+            var leaveButton = new DiscordButtonComponent(ButtonStyle.Danger, $"p_leave_button_{uqName}", "Leave");
 
             return (registerButton, leaveButton);
         }

@@ -26,6 +26,7 @@ namespace Dharma_DSharp
 
             var serviceProvider = new ServiceCollection()
                 .AddSingleton<PartyingSystemHandler>()
+                .AddSingleton<RegistrationDeregistrationHandler>()
                 .AddSingleton<DiscordController>()
                 .BuildServiceProvider();
 
@@ -50,7 +51,7 @@ namespace Dharma_DSharp
             _discordController.HookEventListeners(discordClient);
 
             LogTo.Information("Started successfully~");
-            
+
             // If no slash command is registered, outcomment the registration below, we can overwrite all commands with nothing.
             // This is useful for removing the duplicated commands of the test bot.
             // await discordClient.BulkOverwriteGuildApplicationCommandsAsync(DharmaConstants.GuildId, new List<DiscordApplicationCommand>()).ConfigureAwait(false);
@@ -75,9 +76,12 @@ namespace Dharma_DSharp
             });
 
             // Register all command classes here
+#if !DEBUG
             slash.RegisterCommands<GrantCommands>(DharmaConstants.GuildId);
             slash.RegisterCommands<MoveCommands>(DharmaConstants.GuildId);
             slash.RegisterCommands<ListMembersWithRoleCommand>(DharmaConstants.GuildId);
+            slash.RegisterCommands<EventCommands>(DharmaConstants.GuildId);
+#endif
         }
 
         /// <summary>
