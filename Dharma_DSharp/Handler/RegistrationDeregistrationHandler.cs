@@ -68,7 +68,7 @@ namespace Dharma_DSharp.Handler
             var newDescription = e.Message.Embeds[0].Description;
             if (hasMembersPerGroup)
             {
-                var membersPerGroup = Convert.ToInt32(cuttedByDivisor[3]);
+                var membersPerGroup = Convert.ToInt32(cuttedByDivisor[5]);
                 var stillPlaceInGroup = currentNumberOfAttendees % membersPerGroup != 0;
                 if (stillPlaceInGroup)
                 {
