@@ -106,8 +106,8 @@ namespace Dharma_DSharp.Modules.Dharma
             }
         }
 
-        private DiscordButtonComponent GetRegisterButton() => new(ButtonStyle.Success, $"e_register_button_{Random.Shared.Next()}", "Join");
+        private DiscordButtonComponent GetRegisterButton() => new(ButtonStyle.Success, $"e_register_button_{DateTime.Now.ToString("yyyy_MM_dd_hh_ss")}", "Join");
 
-        private DiscordButtonComponent GetLeaveButton() => new(ButtonStyle.Danger, $"e_leave_button_{Random.Shared.Next()}", "Leave");
+        private DiscordButtonComponent GetLeaveButton() => new(ButtonStyle.Danger, $"e_leave_button_{DateTime.Now.ToString("yyyy_MM_dd_hh_ss")}", "Leave");
     }
 }
