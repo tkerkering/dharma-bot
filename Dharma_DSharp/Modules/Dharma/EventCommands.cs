@@ -85,9 +85,8 @@ namespace Dharma_DSharp.Modules.Dharma
 
                 if (message.Embeds.Count > 0)
                 {
-                    var cuttedDescription = message.Embeds[0].Description.Remove(0, message.Embeds[0].Description.IndexOf("<@"));
-                    var authorId = cuttedDescription.Remove(0, 2).Substring(0, cuttedDescription.IndexOf(">"));
-                    if (authorId == ctx.Member.Id.ToString())
+                    var isAuthorized = message.Embeds[0].Description.Contains(ctx.User.Id.ToString());
+                    if (isAuthorized)
                     {
                         await message.DeleteAsync("Host wanted to delete his event").ConfigureAwait(false);
                     }
